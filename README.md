@@ -19,6 +19,7 @@ Production-ready boilerplate for building edge-deployed Next.js applications wit
 - **Edge-First**: Deployed globally on Cloudflare's 275+ locations
 - **Database-Driven pSEO**: Activate pages instantly without redeployment
 - **Passwordless Auth**: Magic links via email
+- **Background Jobs**: Database-backed job queue with cron triggers
 - **Type-Safe**: Full TypeScript with Drizzle ORM inference
 - **Cost-Effective**: Free tier covers startup scale ($0-6/month)
 
@@ -34,6 +35,7 @@ Production-ready boilerplate for building edge-deployed Next.js applications wit
 | [004](docs/adr/004-pseo-database-driven-rollout.md) | pSEO Database-Driven Rollout |
 | [005](docs/adr/005-worker-wrapper-page-blocking.md) | Custom Worker Wrapper |
 | [006](docs/adr/006-better-auth-authentication.md) | Better Auth Authentication |
+| [007](docs/adr/007-background-job-system.md) | Database-Backed Background Job System |
 
 ### Technical Documentation
 
@@ -143,6 +145,25 @@ const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'sqlite' }),
   plugins: [magicLink({ /* ... */ })],
 });
+```
+
+### 4. Background Job System
+
+```typescript
+// Cron trigger processes pending jobs
+export default {
+  async scheduled(event, env, ctx) {
+    const result = await processJobs(db, env);
+    console.log(`Processed: ${result.processed}`);
+  },
+};
+
+// Job handler pattern
+const jobHandlers = {
+  document_processing: handleDocumentProcessing,
+  email_notification: handleEmailNotification,
+  data_sync: handleDataSync,
+};
 ```
 
 ## Cost Estimate

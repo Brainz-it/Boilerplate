@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADRs)
 
-This directory contains Architecture Decision Records (ADRs) for the TriTrainer project.
+This directory contains Architecture Decision Records (ADRs) for the Next.js + Cloudflare Workers + D1 boilerplate.
 
 ## ADR Index
 
@@ -12,6 +12,7 @@ This directory contains Architecture Decision Records (ADRs) for the TriTrainer 
 | [ADR-004](004-pseo-database-driven-rollout.md) | pSEO Database-Driven Rollout System | Accepted | 2025-01-02 |
 | [ADR-005](005-worker-wrapper-page-blocking.md) | Custom Worker Wrapper for Page Status Blocking | Accepted | 2025-01-02 |
 | [ADR-006](006-better-auth-authentication.md) | Better Auth for Authentication | Accepted | 2025-01-02 |
+| [ADR-007](007-background-job-system.md) | Database-Backed Background Job System | Accepted | 2025-01-02 |
 
 ## ADR Template
 
