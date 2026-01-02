@@ -185,12 +185,20 @@ const jobHandlers = {
 ```
 boilerplate/
 ├── docs/                   # All documentation
-│   ├── adr/               # Architecture decisions
+│   ├── adr/               # Architecture decisions (7 ADRs)
 │   ├── technical/         # Technical docs
 │   ├── guides/            # How-to guides
 │   └── BOILERPLATE_SPEC.md
-├── migrations/             # SQL migrations
+├── migrations/             # SQL migrations (5 files)
+│   ├── 0001_initial.sql   # Core tables
+│   ├── 0002_seed_data.sql # Seed data
+│   ├── 0003_pseo_tables.sql
+│   ├── 0004_auth.sql
+│   └── 0005_background_jobs.sql
 ├── .claude/               # Claude Code config
+│   ├── CLAUDE.md          # Project instructions
+│   ├── memories/          # Persistent context
+│   └── skills/            # Specialized skills
 ├── worker.js              # Custom Worker wrapper
 ├── wrangler.toml          # Cloudflare config
 └── README.md              # This file
@@ -209,7 +217,3 @@ boilerplate/
 ## License
 
 MIT
-
-## Credits
-
-Based on [TriTrainer](https://tritrainer.app) architecture.

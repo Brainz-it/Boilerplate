@@ -1,18 +1,18 @@
-# TriTrainer Boilerplate Specification
+# Boilerplate Specification
 
 **Version**: 1.0.0
 **Last Updated**: 2025-01-02
-**Purpose**: Complete specification for replicating TriTrainer architecture as a boilerplate
+**Purpose**: Complete specification for edge-deployed Next.js applications
 
 ## Overview
 
-This document provides a comprehensive specification for creating a production-ready Next.js 15 application deployed to Cloudflare Workers with D1 database, programmatic SEO, and authentication.
+This boilerplate provides a production-ready foundation for building Next.js 15 applications deployed to Cloudflare Workers with D1 database, programmatic SEO, and passwordless authentication.
 
 **Target Use Cases**:
 - SaaS applications with programmatic SEO needs
 - Edge-deployed Next.js applications
-- Training/coaching platforms
 - Content-heavy applications with dynamic user data
+- Applications requiring low-latency global distribution
 
 ## Architecture Summary
 
@@ -61,7 +61,7 @@ This document provides a comprehensive specification for creating a production-r
              │
              ├──────► D1 Database (SQLite)
              ├──────► R2 Storage (Assets)
-             └──────► External APIs (Strava, etc.)
+             └──────► External APIs
 ```
 
 ## Core Features
@@ -75,15 +75,13 @@ This document provides a comprehensive specification for creating a production-r
 - 7-day sessions with auto-refresh
 - HTTP-only secure cookies
 - Edge-compatible
-- Future OAuth ready (Strava, Google)
+- OAuth ready (Google, GitHub, etc.)
 
 **Database Tables**:
 - `users` - User accounts
 - `user_sessions` - Session tokens
 - `verification` - Magic link tokens
-- `accounts` - OAuth providers (future)
-
-**Configuration**: [`src/lib/auth/better-auth.ts`](../src/lib/auth/better-auth.ts)
+- `accounts` - OAuth providers
 
 **Email Flow**:
 1. User enters email
@@ -112,15 +110,8 @@ This document provides a comprehensive specification for creating a production-r
 
 **Page Lifecycle**:
 ```
-pending → active → paused → archived
+pending → active → blocked → retired
 ```
-
-**Cluster Types**:
-- Training Plans (e.g., `/training-plans/sprint/debutant`)
-- Discipline Guides (e.g., `/guides/natation/crawl`)
-- Race Preparation (e.g., `/race-prep/ironman/nutrition`)
-- Equipment Reviews (e.g., `/equipement/velo/tri-bike`)
-- Comparisons (e.g., `/compare/sprint-vs-olympic`)
 
 **Content Structure** (JSON fields):
 ```typescript
@@ -129,35 +120,14 @@ interface PSEOPage {
     quickAnswer: string;
     faqs: Array<{ question: string; answer: string }>;
     sections: Array<{ title: string; content: string }>;
-    tips: Array<{ title: string; content: string }>;
   };
   schemas: {
     article: SchemaOrg.Article;
     howTo?: SchemaOrg.HowTo;
     faqPage?: SchemaOrg.FAQPage;
   };
-  variables: {
-    distance?: { name: string; swim: number; bike: number; run: number };
-    level?: { name: string; description: string };
-    duration?: { weeks: number; hoursPerWeek: { min: number; max: number } };
-  };
+  variables: Record<string, unknown>; // Domain-specific
 }
-```
-
-**Rollout Strategy**:
-| Batch | Pages | Activation | Purpose |
-|-------|-------|------------|---------|
-| 0 | 5 | Immediate | Core pages |
-| 1 | 28 | +3 days | Distance × level combinations |
-| 2 | 10 | +7 days | Competition pages |
-| 3 | 4 | +14 days | Specialty programs |
-| 4 | 5 | +21 days | Profile pages |
-
-**Activation Process**:
-```sql
-UPDATE pseo_pages
-SET status = 'active', published_at = unixepoch()
-WHERE sitemap_batch = 1;
 ```
 
 **Worker Blocking Logic**: [`worker.js`](../worker.js)
@@ -170,31 +140,48 @@ if (isPSEORoute(pathname)) {
 }
 ```
 
-### 3. Database Schema
+### 3. Background Job System
 
-**Core Modules**:
+**Implementation**: Database-backed job queue with cron triggers
+
+**Key Features**:
+- Optimistic locking for distributed workers
+- Handler registry pattern
+- Progress tracking and stages
+- Configurable retries and timeouts
+- Audit logging
+
+**Database Tables**:
+- `background_job_types` - Job type configurations
+- `background_jobs` - Job queue
+- `background_job_logs` - Audit trail
+- `worker_config` - Global settings
+
+**Job Lifecycle**:
+```
+pending → processing → completed/failed/review_needed
+```
+
+### 4. Database Schema
+
+**Core Tables**:
 
 **Authentication**:
-- `users` - User accounts (email, Strava integration)
+- `users` - User accounts
 - `user_sessions` - Session tokens
 - `verification` - Magic link tokens
 - `accounts` - OAuth providers
-
-**User Profiles**:
-- `athlete_profiles` - Extended athlete data (1:1 with users)
-- `heart_rate_zones` - Training zones (1:many with users)
-
-**Training Programs**:
-- `programs` - Training programs (12-24 weeks)
-- `program_weeks` - Weekly structure and volume
-- `sessions` - Individual workouts
-- `goals` - Target races
-- `templates` - Reusable program templates
 
 **pSEO**:
 - `pseo_pages` - SEO page metadata
 - `pseo_links` - Internal link graph
 - `pseo_config` - Rollout settings
+
+**Background Jobs**:
+- `background_job_types` - Job configurations
+- `background_jobs` - Job queue
+- `background_job_logs` - Audit logs
+- `worker_config` - Global settings
 
 **Naming Conventions**:
 - Tables: `snake_case`
@@ -204,133 +191,40 @@ if (isPSEORoute(pathname)) {
 - Timestamps: INTEGER (Unix seconds)
 - JSON: TEXT
 
-**Indexes Strategy**:
-- All foreign keys indexed
-- Unique constraints on natural keys (email, url_path)
-- Composite indexes for common queries
-- Date fields for range queries
-
-### 4. API Routes
-
-**Structure**:
-```
-/api/
-├── auth/[...all]        # Better Auth handler
-├── auth/logout          # Explicit logout
-├── strava/webhook       # Strava events
-├── strava/activities    # Activity sync
-├── program/create       # Create program
-├── program/[id]         # Program CRUD
-└── program/recalculate  # Adaptive recalculation
-```
-
-**Authentication**: HTTP-only cookie (`better-auth.session_token`)
-
-**Error Format**:
-```json
-{
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Session token invalid or expired",
-    "details": {}
-  }
-}
-```
-
-**Rate Limiting**: Cloudflare automatic (100 req/min per user)
-
 ## File Structure
 
 ```
-strava_app/
+boilerplate/
 ├── .claude/                    # Claude Code configuration
 │   ├── CLAUDE.md              # Project instructions
+│   ├── memories/              # Persistent context
 │   └── skills/                # Specialized skills
 │
 ├── docs/                       # Documentation
 │   ├── adr/                   # Architecture Decision Records
-│   │   ├── README.md
-│   │   ├── 001-nextjs-app-router.md
-│   │   ├── 002-cloudflare-workers-deployment.md
-│   │   ├── 003-d1-database-drizzle-orm.md
-│   │   ├── 004-pseo-database-driven-rollout.md
-│   │   ├── 005-worker-wrapper-page-blocking.md
-│   │   └── 006-better-auth-authentication.md
-│   │
 │   ├── technical/             # Technical documentation
-│   │   ├── project-structure.md
-│   │   ├── database-schema.md
-│   │   ├── api-routes.md
-│   │   ├── components.md
-│   │   └── workflows.md
-│   │
 │   ├── guides/                # How-to guides
-│   │   ├── setup.md
-│   │   ├── deployment.md
-│   │   └── migrations.md
-│   │
 │   └── BOILERPLATE_SPEC.md   # This file
 │
 ├── migrations/                 # SQL migration files
-│   ├── 0001_create_users.sql
-│   ├── 0002_seed_data.sql
-│   ├── 0003_create_programs.sql
-│   ├── 0004_create_sessions.sql
-│   ├── 0005_pseo_tables.sql
-│   └── 0006_pseo_seed.sql
-│
-├── src/
-│   ├── app/                   # Next.js 15 App Router
-│   │   ├── (landing)/        # Landing pages
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── (pseo)/           # pSEO pages
-│   │   │   └── [...slug]/page.tsx
-│   │   │
-│   │   ├── dashboard/        # Protected pages
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── api/              # API routes
-│   │   │   ├── auth/
-│   │   │   └── strava/
-│   │   │
-│   │   ├── layout.tsx        # Root layout
-│   │   └── globals.css       # Global styles
-│   │
-│   ├── components/           # React components
-│   │   ├── ui/              # Base components
-│   │   ├── auth/            # Auth components
-│   │   ├── layout/          # Layout components
-│   │   └── pseo/            # pSEO components
-│   │
-│   ├── lib/                  # Utilities
-│   │   ├── auth/            # Better Auth
-│   │   ├── db/              # Database
-│   │   │   └── schema/      # Drizzle schemas
-│   │   ├── pseo/            # pSEO utilities
-│   │   └── utils/           # General utilities
-│   │
-│   ├── types/                # TypeScript types
-│   │   └── cloudflare.d.ts
-│   │
-│   └── middleware.ts         # Next.js middleware
+│   ├── 0001_initial.sql       # Core tables
+│   ├── 0002_seed_data.sql     # Seed data
+│   ├── 0003_pseo_tables.sql   # pSEO tables
+│   ├── 0004_auth.sql          # Auth tables
+│   └── 0005_background_jobs.sql # Job system
 │
 ├── worker.js                  # Custom Cloudflare Worker wrapper
 ├── wrangler.toml              # Cloudflare configuration
-├── next.config.ts             # Next.js configuration
-├── drizzle.config.ts          # Drizzle configuration
-├── tailwind.config.ts         # Tailwind configuration
-├── tsconfig.json              # TypeScript configuration
-└── package.json               # Dependencies
+└── README.md
 ```
 
-## Configuration Files
+## Configuration
 
 ### wrangler.toml
 
 ```toml
-name = "triathlon-app"
-main = "worker.js"  # Custom wrapper, not .open-next/worker.js
+name = "your-app-name"
+main = "worker.js"
 compatibility_date = "2024-12-01"
 
 [assets]
@@ -338,66 +232,30 @@ directory = ".open-next/assets"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "triathlon-db"
-database_id = "your-database-id"
+database_name = "your-db-name"
+database_id = "YOUR_DATABASE_ID"
 
 [vars]
-BETTER_AUTH_URL = "https://tritrainer.app"
-EMAIL_FROM = "TriTrainer <noreply@tritrainer.app>"
+APP_URL = "https://your-domain.com"
 ENVIRONMENT = "production"
 ```
 
-### next.config.ts
+### Environment Variables
 
-```typescript
-const nextConfig: NextConfig = {
-  output: 'standalone',  // Required for OpenNext
-  // ... other config
-};
-```
-
-### drizzle.config.ts
-
-```typescript
-export default {
-  schema: './src/lib/db/schema/*',
-  out: './drizzle',
-  dialect: 'sqlite',
-  driver: 'd1',
-};
-```
-
-## Environment Variables
-
-### Development (`.env.local`)
-
+**Development** (`.env.local`):
 ```bash
-# Cloudflare
 CLOUDFLARE_ACCOUNT_ID=your-account-id
-
-# Better Auth
 BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=min-32-char-secret
-
-# Email (optional in dev)
 RESEND_API_KEY=
-EMAIL_FROM=TriTrainer <noreply@tritrainer.app>
-
-# Environment
+EMAIL_FROM=Your App <noreply@your-domain.com>
 ENVIRONMENT=development
-
-# Strava (optional)
-STRAVA_CLIENT_ID=
-STRAVA_CLIENT_SECRET=
 ```
 
-### Production (Cloudflare Secrets)
-
+**Production** (Cloudflare Secrets):
 ```bash
-# Set via Wrangler
 npx wrangler secret put BETTER_AUTH_SECRET
 npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put STRAVA_CLIENT_SECRET
 ```
 
 ## Implementation Checklist
@@ -406,62 +264,48 @@ npx wrangler secret put STRAVA_CLIENT_SECRET
 
 - [ ] Install Node.js 20+, pnpm, Wrangler
 - [ ] Create Cloudflare account
-- [ ] Clone/create repository
+- [ ] Clone repository
 - [ ] Install dependencies (`pnpm install`)
-- [ ] Create `.env.local` with required variables
+- [ ] Create `.env.local`
 - [ ] Generate Better Auth secret
 
 ### Database Setup
 
 - [ ] Create D1 database (`npx wrangler d1 create`)
 - [ ] Update `wrangler.toml` with `database_id`
-- [ ] Create migration files in `migrations/`
-- [ ] Apply migrations (`npx wrangler d1 execute`)
+- [ ] Apply migrations
 - [ ] Verify tables exist
 
 ### Authentication Setup
 
-- [ ] Configure Better Auth in `src/lib/auth/better-auth.ts`
+- [ ] Configure Better Auth
 - [ ] Create auth API routes
 - [ ] Implement login/logout pages
 - [ ] Test magic link flow locally
 - [ ] Setup Resend account (production)
-- [ ] Verify DNS records for email domain
 
 ### pSEO Setup
 
-- [ ] Create `pseo_pages` table with schema
 - [ ] Implement Worker wrapper (`worker.js`)
-- [ ] Create pSEO page component (`[...slug]/page.tsx`)
+- [ ] Create pSEO page component
 - [ ] Generate seed data for pages
 - [ ] Test page activation/blocking
 - [ ] Configure rollout batches
 
-### Deployment Setup
+### Deployment
 
-- [ ] Configure custom domain in Cloudflare
-- [ ] Update DNS nameservers
-- [ ] Setup SSL/TLS (Full strict)
+- [ ] Configure custom domain
+- [ ] Setup SSL/TLS
 - [ ] Configure production secrets
-- [ ] Build application (`pnpm build`)
-- [ ] Deploy to Cloudflare (`npx wrangler deploy`)
+- [ ] Build application
+- [ ] Deploy to Cloudflare
 - [ ] Verify deployment
-
-### Post-Deployment
-
-- [ ] Test authentication flow
-- [ ] Activate initial pSEO batch
-- [ ] Submit sitemap to search engines
-- [ ] Configure monitoring/alerts
-- [ ] Setup GitHub Actions CI/CD
-- [ ] Configure backup strategy
 
 ## Key Design Patterns
 
 ### 1. Worker Wrapper Pattern
 
-**Problem**: Need to block pages without executing Next.js code
-**Solution**: Custom Worker intercepts before OpenNext
+Custom Worker intercepts before OpenNext for pre-routing logic.
 
 ```javascript
 export default {
@@ -479,270 +323,49 @@ export default {
 
 ### 2. Database-Driven Rollout
 
-**Problem**: Need to activate pages without redeployment
-**Solution**: Status field in database controls accessibility
+Status field in database controls accessibility without redeployment.
 
 ```sql
--- Activate pages instantly
 UPDATE pseo_pages
 SET status = 'active', published_at = unixepoch()
 WHERE sitemap_batch = 1;
-
--- Reflects globally in <100ms (D1 replication)
 ```
 
-### 3. Type-Safe Database Access
+### 3. Optimistic Locking
 
-**Problem**: Runtime errors from database queries
-**Solution**: Drizzle ORM with TypeScript inference
+Prevents duplicate job processing in distributed workers.
 
-```typescript
-// Schema definition
-export const users = sqliteTable('users', {
-  id: text('id').primaryKey(),
-  email: text('email').notNull().unique(),
-});
-
-// Type inference
-type User = typeof users.$inferSelect;  // Automatic types
-type NewUser = typeof users.$inferInsert;
-
-// Type-safe query
-const user: User = await db
-  .select()
-  .from(users)
-  .where(eq(users.id, userId));
-```
-
-### 4. Edge-Native Authentication
-
-**Problem**: Traditional auth libraries don't work on Workers
-**Solution**: Better Auth built for edge with D1 adapter
-
-```typescript
-export function createAuth(env: AuthEnv, db: ReturnType<typeof createDb>) {
-  return betterAuth({
-    database: drizzleAdapter(db, { provider: 'sqlite' }),
-    plugins: [magicLink({ /* ... */ })],
-  });
-}
+```sql
+UPDATE background_jobs
+SET status = 'processing', locked_at = ?, locked_by = ?
+WHERE id = ? AND status = 'pending';
 ```
 
 ## Performance Characteristics
 
 ### Response Times (P95)
 
-| Operation | Latency | Notes |
-|-----------|---------|-------|
-| Static page (cache hit) | <10ms | Edge cache |
-| Dynamic page (SSR) | <100ms | Worker execution + D1 query |
-| API request (authenticated) | <50ms | Session check + query |
-| pSEO status check | <1ms | Indexed D1 query |
-| Database query (indexed) | <1ms | D1 edge replica |
-| Database query (complex) | <10ms | Joins, aggregations |
+| Operation | Latency |
+|-----------|---------|
+| Static page (cache hit) | <10ms |
+| Dynamic page (SSR) | <100ms |
+| API request (authenticated) | <50ms |
+| pSEO status check | <1ms |
+| Database query (indexed) | <1ms |
 
-### Cold Start
+### Cost Estimation
 
-| Component | Time | Frequency |
-|-----------|------|-----------|
-| Worker initialization | <50ms | First request after deploy |
-| Better Auth init | ~10ms | Per cold start |
-| Drizzle adapter | ~5ms | Per cold start |
+**Startup Scale** (1k users, 100k requests/month):
+- Cloudflare Workers: $0 (free tier)
+- D1 Database: $0 (free tier)
+- Resend: $0 (free tier)
+- **Total**: ~$0-1/month
 
-### Scale Limits
-
-| Resource | Free Tier | Paid Tier | Notes |
-|----------|-----------|-----------|-------|
-| Worker requests | 100k/day | Unlimited | $5/10M requests |
-| D1 reads | 5M/day | Unlimited | $0.001/100k reads |
-| D1 writes | 100k/day | Unlimited | $1/1M writes |
-| D1 storage | 500MB | 10GB | $0.75/GB/month |
-| Email (Resend) | 3k/month | Unlimited | $20/50k emails |
-
-## Cost Estimation
-
-### Startup Scale (1k active users, 100k requests/month)
-
-| Service | Cost |
-|---------|------|
-| Cloudflare Workers | $0 (free tier) |
-| D1 Database | $0 (free tier) |
-| Resend | $0 (free tier) |
-| Custom Domain | $12/year |
-| **Total** | **~$1/month** |
-
-### Growth Scale (10k users, 1M requests/month)
-
-| Service | Cost |
-|---------|------|
-| Cloudflare Workers | $5 |
-| D1 Database | $1 |
-| Resend | $0-20 |
-| Custom Domain | $12/year |
-| **Total** | **~$6-26/month** |
-
-## Security Considerations
-
-### Authentication
-- HTTP-only cookies (prevents XSS)
-- Secure flag in production (HTTPS only)
-- SameSite=Lax (CSRF protection)
-- 7-day expiration with refresh
-- Magic links expire in 5 minutes
-
-### Database
-- Parameterized queries (Drizzle)
-- No raw SQL from user input
-- Foreign key constraints
-- Unique constraints on sensitive fields
-
-### Headers
-```javascript
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: geolocation=(), microphone=(), camera=()
-```
-
-### Rate Limiting
-- Cloudflare automatic (per IP/user)
-- WAF rules for API endpoints
-- Bot protection enabled
-
-## Migration from Other Platforms
-
-### From Vercel
-
-**Database**: Postgres/Supabase → D1 (SQLite)
-- Export data as SQL
-- Convert to SQLite syntax
-- Import to D1
-
-**Auth**: NextAuth → Better Auth
-- Export users table
-- Migrate to Better Auth schema
-- Users re-authenticate
-
-**Edge**: Vercel Edge → Cloudflare Workers
-- Already edge-compatible
-- Minor runtime API differences
-
-### From Traditional VPS
-
-**Architecture**: Monolith → Serverless
-- Refactor to App Router
-- Separate API routes
-- Move to D1 database
-
-**Deployment**: Manual → CI/CD
-- GitHub Actions workflow
-- Automatic deploys on push
-- Instant rollbacks
-
-## Troubleshooting Guide
-
-### Build Errors
-
-**Error**: `Cannot find module '@opennextjs/cloudflare'`
-**Fix**: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
-
-**Error**: TypeScript errors in schema files
-**Fix**: Restart TS server, verify imports
-
-### Runtime Errors
-
-**Error**: `D1_ERROR: Database binding not found`
-**Fix**: Check `wrangler.toml` has correct `database_id`
-
-**Error**: Session not persisting
-**Fix**: Verify `BETTER_AUTH_SECRET` set, cookies enabled
-
-### Deployment Issues
-
-**Error**: 502 Bad Gateway
-**Fix**: Check Worker logs (`npx wrangler tail`)
-
-**Error**: Pages return 404 (should be 200)
-**Fix**: Verify page status in database, check Worker blocking logic
-
-## Testing Strategy
-
-### Unit Tests
-- Utility functions
-- Database queries
-- Auth helpers
-
-### Integration Tests
-- API endpoints
-- Authentication flow
-- pSEO page rendering
-
-### E2E Tests
-- User registration
-- Login flow
-- Program creation
-- Strava integration
-
-### Performance Tests
-- Load testing (10k concurrent users)
-- Database query performance
-- Cold start latency
-
-## Monitoring and Observability
-
-### Metrics to Track
-
-**Application**:
-- Request rate (requests/minute)
-- Error rate (4xx, 5xx)
-- Response time (P50, P95, P99)
-- Cold start frequency
-
-**Database**:
-- Query latency
-- Query count (reads vs writes)
-- Error rate
-- Storage usage
-
-**Authentication**:
-- Login success rate
-- Magic link delivery rate
-- Session creation rate
-- Active sessions
-
-**pSEO**:
-- Active pages count
-- Blocked requests (404s)
-- Activation rate (pages/day)
-
-### Alerting Rules
-
-- Error rate > 5%
-- Response time P95 > 500ms
-- Database errors > 0
-- Email delivery failures > 10%
-
-## Future Enhancements
-
-### Planned Features
-
-- [ ] Strava OAuth integration
-- [ ] Multi-factor authentication (TOTP)
-- [ ] Role-based access control (RBAC)
-- [ ] Real-time program updates (WebSockets)
-- [ ] Mobile app (React Native)
-- [ ] AI training recommendations
-- [ ] Team coaching features
-- [ ] Payment integration (Stripe)
-
-### Technical Debt
-
-- [ ] Add comprehensive test coverage (>80%)
-- [ ] Implement request tracing
-- [ ] Setup error tracking (Sentry)
-- [ ] Add performance monitoring (Web Vitals)
-- [ ] Implement feature flags
-- [ ] Add database backup automation
+**Growth Scale** (10k users, 1M requests/month):
+- Cloudflare Workers: $5
+- D1 Database: $1
+- Resend: $0-20
+- **Total**: ~$6-26/month
 
 ## References
 
@@ -760,24 +383,8 @@ Permissions-Policy: geolocation=(), microphone=(), camera=()
 - [ADR-004: pSEO Database-Driven Rollout](./adr/004-pseo-database-driven-rollout.md)
 - [ADR-005: Custom Worker Wrapper](./adr/005-worker-wrapper-page-blocking.md)
 - [ADR-006: Better Auth](./adr/006-better-auth-authentication.md)
-
-### Guides
-- [Setup Guide](./guides/setup.md)
-- [Deployment Guide](./guides/deployment.md)
-- [Technical Docs](./technical/)
+- [ADR-007: Background Job System](./adr/007-background-job-system.md)
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Support
-
-- **GitHub**: [github.com/your-org/strava_app](https://github.com/your-org/strava_app)
-- **Discord**: [discord.gg/tritrainer](https://discord.gg/tritrainer)
-- **Email**: support@tritrainer.app
-
----
-
-**Maintained by**: TriTrainer Team
-**Last Review**: 2025-01-02
-**Next Review**: 2025-04-02 (quarterly)
+MIT License

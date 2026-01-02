@@ -1,4 +1,9 @@
-name = "triathlon-app"
+# =============================================================================
+# Cloudflare Workers Configuration
+# =============================================================================
+# Customize these values for your project
+
+name = "your-app-name"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -9,27 +14,50 @@ main = "worker.js"
 [assets]
 directory = ".open-next/assets"
 
+# =============================================================================
 # D1 Database
+# =============================================================================
+# Create with: npx wrangler d1 create your-db-name
+# Then update database_id below
+
 [[d1_databases]]
 binding = "DB"
-database_name = "triathlon-db"
-database_id = "5150b2a6-ba97-4bb1-a0c7-faeeb46746d7"
+database_name = "your-db-name"
+database_id = "YOUR_DATABASE_ID_HERE"
 
-# Environment variables (non-sensitive)
+# =============================================================================
+# Environment Variables
+# =============================================================================
+
 [vars]
 ENVIRONMENT = "production"
-APP_URL = "https://tritrainer.app"
+APP_URL = "https://your-domain.com"
 
-# Custom domain routes
-[[routes]]
-pattern = "tritrainer.app/*"
-zone_name = "tritrainer.app"
+# =============================================================================
+# Custom Domain Routes (optional)
+# =============================================================================
+# Uncomment and configure for your domain
 
-[[routes]]
-pattern = "www.tritrainer.app/*"
-zone_name = "tritrainer.app"
+# [[routes]]
+# pattern = "your-domain.com/*"
+# zone_name = "your-domain.com"
 
-# Observability settings
+# [[routes]]
+# pattern = "www.your-domain.com/*"
+# zone_name = "your-domain.com"
+
+# =============================================================================
+# Cron Triggers (for background jobs)
+# =============================================================================
+# Uncomment to enable background job processing
+
+# [triggers]
+# crons = ["* * * * *"]  # Every minute
+
+# =============================================================================
+# Observability
+# =============================================================================
+
 [observability]
 enabled = false
 head_sampling_rate = 1
@@ -45,6 +73,9 @@ enabled = false
 persist = true
 head_sampling_rate = 1
 
-# Production environment
+# =============================================================================
+# Production Environment
+# =============================================================================
+
 [env.production]
-vars = { ENVIRONMENT = "production", APP_URL = "https://tritrainer.app" }
+vars = { ENVIRONMENT = "production", APP_URL = "https://your-domain.com" }

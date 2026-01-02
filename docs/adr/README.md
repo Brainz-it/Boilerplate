@@ -14,6 +14,16 @@ This directory contains Architecture Decision Records (ADRs) for the Next.js + C
 | [ADR-006](006-better-auth-authentication.md) | Better Auth for Authentication | Accepted | 2025-01-02 |
 | [ADR-007](007-background-job-system.md) | Database-Backed Background Job System | Accepted | 2025-01-02 |
 
+## Migrations
+
+| Migration | Description |
+|-----------|-------------|
+| 0001_initial.sql | Core tables (users, profiles, audit, admin) |
+| 0002_seed_data.sql | Initial seed data |
+| 0003_pseo_tables.sql | pSEO system tables |
+| 0004_auth.sql | Better Auth tables |
+| 0005_background_jobs.sql | Background job system |
+
 ## ADR Template
 
 Each ADR follows this structure:
