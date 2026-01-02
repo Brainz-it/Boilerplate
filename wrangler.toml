@@ -1,0 +1,50 @@
+name = "triathlon-app"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Custom Worker wrapper (checks pSEO page status before serving)
+main = "worker.js"
+
+# Static assets binding
+[assets]
+directory = ".open-next/assets"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "triathlon-db"
+database_id = "5150b2a6-ba97-4bb1-a0c7-faeeb46746d7"
+
+# Environment variables (non-sensitive)
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://tritrainer.app"
+
+# Custom domain routes
+[[routes]]
+pattern = "tritrainer.app/*"
+zone_name = "tritrainer.app"
+
+[[routes]]
+pattern = "www.tritrainer.app/*"
+zone_name = "tritrainer.app"
+
+# Observability settings
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+# Production environment
+[env.production]
+vars = { ENVIRONMENT = "production", APP_URL = "https://tritrainer.app" }
