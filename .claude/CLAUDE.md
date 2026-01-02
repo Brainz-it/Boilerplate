@@ -1,59 +1,123 @@
-# TriTrainer Project Configuration
+# Boilerplate - Next.js 15 + Cloudflare Workers + D1
 
-This file contains project-specific instructions for Claude Code when working on the TriTrainer triathlon training application.
+Production-ready boilerplate for edge-deployed Next.js applications with programmatic SEO and background job processing.
 
 ## Project Context
 
-**Domain**: tritrainer.app
-**Stack**: Next.js 15, Cloudflare Workers (OpenNext), D1 Database, Drizzle ORM
-**Purpose**: AI-powered triathlon training platform with programmatic SEO
+**Type**: Template/Boilerplate Repository
+**Stack**: Next.js 15 (App Router), Cloudflare Workers (OpenNext), D1 Database, Drizzle ORM, Better Auth
+**Purpose**: Starting point for building edge-first applications with pSEO and job queue capabilities
+
+## Architecture Overview
+
+```
+Request → Cloudflare Edge → worker.js (pSEO check) → OpenNext → Next.js App → D1
+                                ↓
+                         Cron Trigger → Job Processor → Background Jobs
+```
 
 ## Available Skills
 
-The following specialized skills are available for this project:
+### Development
+- **@skills/fullstack-nextjs.md** - Next.js 15 with App Router, Server Components, SSG
+- **@skills/ai-llm-engineer.md** - AI/LLM integration patterns
+- **@skills/devops-infra.md** - Cloudflare Workers, D1, deployment
 
-### Development Skills
-- **@skills/fullstack-nextjs.md** - Next.js fullstack development expertise
-- **@skills/ai-llm-engineer.md** - AI/LLM integration and prompt engineering
-- **@skills/devops-infra.md** - Cloudflare Workers, deployment, infrastructure
-
-### Code Quality Skills
+### Code Quality
 - **@skills/code-reviewer.md** - Code review and quality assurance
-- **@skills/refactorer.md** - Code refactoring and technical debt reduction
+- **@skills/refactorer.md** - Refactoring and technical debt
 - **@skills/debugger.md** - Debugging and troubleshooting
-- **@skills/qa-engineer.md** - Testing strategy and quality engineering
+- **@skills/qa-engineer.md** - Testing strategy
 
 ### Documentation & Security
 - **@skills/docs-writer.md** - Technical documentation
-- **@skills/security-auditor.md** - Security auditing and vulnerability assessment
+- **@skills/security-auditor.md** - Security auditing
 
 ### Orchestration
 - **@skills/orchestrator.md** - Multi-agent task coordination
 
-## Project-Specific Guidelines
+## Key Systems
 
-### pSEO System
-- All pSEO pages must check status in D1 database before rendering
-- Only pages with `status='active'` should be accessible
-- Pages with `status='pending'` should return 404
-- Rollout managed via GitHub Actions workflow
+### 1. pSEO Database-Driven Rollout
+- Pages check status in D1 before rendering
+- `status='active'` → render page
+- `status='pending'` → return 404
+- Custom worker.js wrapper intercepts requests
 
-### Database
-- Use Drizzle ORM for all database operations
-- D1 binding available as `process.env.DB` in Cloudflare Workers
-- Local development uses SQLite with better-sqlite3
+### 2. Background Job System
+- Database-backed queue (not Cloudflare Queues)
+- Optimistic locking for distributed workers
+- Cron trigger every minute
+- Handler registry pattern
+
+### 3. Authentication (Better Auth)
+- Passwordless magic links
+- Edge-compatible with D1
+- Drizzle adapter
+
+## Database Conventions
+
+**Tables**: snake_case (e.g., `background_jobs`, `pseo_pages`)
+**Columns**: snake_case (e.g., `created_at`, `job_type_id`)
+**Primary Keys**: TEXT with prefixed IDs (e.g., `jt_`, `job_`)
+**Timestamps**: INTEGER as Unix epoch via `unixepoch()`
+**JSON**: TEXT columns with JSON stringified data
+
+## File Structure
+
+```
+├── docs/
+│   ├── adr/           # Architecture Decision Records
+│   ├── technical/     # Technical documentation
+│   └── guides/        # How-to guides
+├── migrations/        # D1 SQL migrations
+├── .claude/
+│   └── skills/        # Claude Code skills
+├── worker.js          # Custom Worker wrapper
+├── wrangler.toml      # Cloudflare config
+└── README.md
+```
+
+## Development Workflow
+
+### Local Setup
+```bash
+pnpm install
+cp .env.example .env.local
+npx wrangler d1 create your-db-name
+# Update wrangler.toml with database_id
+pnpm dev
+```
 
 ### Deployment
-- Production: Cloudflare Workers via `wrangler deploy`
-- Database: D1 remote via `wrangler d1`
-- Domain: tritrainer.app (configured with custom routes)
+```bash
+pnpm build
+npx wrangler deploy
+```
 
-### Code Standards
+### Migrations
+```bash
+for f in migrations/*.sql; do
+  npx wrangler d1 execute your-db --remote --file "$f"
+done
+```
+
+## Code Standards
+
 - TypeScript strict mode
-- No duplicate code - use DRY principles
-- Component-based architecture with Brutal UI design system
-- Server components by default, client components only when needed
+- DRY principles - no duplicate code
+- Server Components by default
+- Edge-compatible code (no Node.js APIs)
+- Drizzle ORM for all database operations
 
-## Current Task Context
+## ADRs Reference
 
-Working on pSEO rollout system with database-driven page activation to prevent premature indexing of pending pages.
+| ADR | Topic |
+|-----|-------|
+| 001 | Next.js 15 with App Router |
+| 002 | Cloudflare Workers Deployment |
+| 003 | D1 Database with Drizzle ORM |
+| 004 | pSEO Database-Driven Rollout |
+| 005 | Custom Worker Wrapper |
+| 006 | Better Auth Authentication |
+| 007 | Background Job System |
